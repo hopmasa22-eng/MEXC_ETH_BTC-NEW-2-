@@ -40,7 +40,16 @@ def color(c):
 
 
 def emoji(c):
-    return {"G": "🟢", "R": "🔴", "D": "⚪"}[c]
+    return {"G": "ð¢", "R": "ð´", "D": "âª"}[c]
+
+
+def classify_result(start, opposite, result_colors):
+    """Return WIN if any favorable candle, LOSS if all are opposite, else DOJI."""
+    if start in result_colors:
+        return "WIN"
+    if all(c == opposite for c in result_colors):
+        return "LOSS"
+    return "DOJI"
 
 
 def label(symbol):
@@ -62,7 +71,7 @@ def send(message):
         print("\n--- TEST MESSAGE ---\n" + message + "\n--------------------")
         return True
     if not TOKEN or not CHAT_IDS:
-        log.error("Не налаштовано Telegram: задайте TELEGRAM_BOT_TOKEN і TELEGRAM_CHAT_ID")
+        log.error("ÐÐµ Ð½Ð°Ð»Ð°ÑÑÐ¾Ð²Ð°Ð½Ð¾ Telegram: Ð·Ð°Ð´Ð°Ð¹ÑÐµ TELEGRAM_BOT_TOKEN Ñ TELEGRAM_CHAT_ID")
         return False
 
     all_ok = True
@@ -145,12 +154,12 @@ def fetch(symbol, limit=300):
     r.raise_for_status()
     payload = r.json()
     if payload.get("success") is False:
-        raise RuntimeError(f"Помилка API MEXC: {payload}")
+        raise RuntimeError(f"ÐÐ¾Ð¼Ð¸Ð»ÐºÐ° API MEXC: {payload}")
     data = payload.get("data")
     if not isinstance(data, dict) or not isinstance(data.get("time"), list):
-        raise RuntimeError(f"Неочікувана відповідь API MEXC: {str(payload)[:250]}")
+        raise RuntimeError(f"ÐÐµÐ¾ÑÑÐºÑÐ²Ð°Ð½Ð° Ð²ÑÐ´Ð¿Ð¾Ð²ÑÐ´Ñ API MEXC: {str(payload)[:250]}")
     if not (len(data["time"]) == len(data.get("open", [])) == len(data.get("close", []))):
-        raise RuntimeError("Масиви свічок MEXC мають різну довжину")
+        raise RuntimeError("ÐÐ°ÑÐ¸Ð²Ð¸ ÑÐ²ÑÑÐ¾Ðº MEXC Ð¼Ð°ÑÑÑ ÑÑÐ·Ð½Ñ Ð´Ð¾Ð²Ð¶Ð¸Ð½Ñ")
 
     minute_rows = []
     for ts, op, cl in zip(data["time"], data["open"], data["close"]):
@@ -193,7 +202,7 @@ def load_state(path):
     except FileNotFoundError:
         pass
     except Exception:
-        log.exception("Не вдалося прочитати файл стану %s", path)
+        log.exception("ÐÐµ Ð²Ð´Ð°Ð»Ð¾ÑÑ Ð¿ÑÐ¾ÑÐ¸ÑÐ°ÑÐ¸ ÑÐ°Ð¹Ð» ÑÑÐ°Ð½Ñ %s", path)
     return {"seen": [], "pending": []}
 
 
@@ -241,12 +250,12 @@ class Engine:
             return
         direction = p["direction"]
         message = (
-            f"🔔 СИГНАЛ {direction} {emoji(p['start'])}\n"
-            f"{label(self.symbol)} — MEXC Futures | 10 хвилин\n"
-            f"Правило {rule}\n"
-            f"Час сигналу: {kyiv(signal_ts)} (Київ)\n"
-            f"Перевірка результату: свічки №{result_start_index}–{result_end_number}\n"
-            "Сигнал інформаційний — автоматичні угоди не відкриваються."
+            f"ð Ð¡ÐÐÐÐÐ {direction} {emoji(p['start'])}\n"
+            f"{label(self.symbol)} â MEXC Futures | 10 ÑÐ²Ð¸Ð»Ð¸Ð½\n"
+            f"ÐÑÐ°Ð²Ð¸Ð»Ð¾ {rule}\n"
+            f"Ð§Ð°Ñ ÑÐ¸Ð³Ð½Ð°Ð»Ñ: {kyiv(signal_ts)} (ÐÐ¸ÑÐ²)\n"
+            f"ÐÐµÑÐµÐ²ÑÑÐºÐ° ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÑ: ÑÐ²ÑÑÐºÐ¸ â{result_start_index}â{result_end_number}\n"
+            "Ð¡Ð¸Ð³Ð½Ð°Ð» ÑÐ½ÑÐ¾ÑÐ¼Ð°ÑÑÐ¹Ð½Ð¸Ð¹ â Ð°Ð²ÑÐ¾Ð¼Ð°ÑÐ¸ÑÐ½Ñ ÑÐ³Ð¾Ð´Ð¸ Ð½Ðµ Ð²ÑÐ´ÐºÑÐ¸Ð²Ð°ÑÑÑÑÑ."
         )
         # Claim the event before sending so a failed request cannot create a
         # new copy every POLL_SECONDS. send() itself retries 429 using retry_after.
@@ -277,7 +286,7 @@ class Engine:
             # RULE 1: warning only at the close of #7; signal only at close of #8.
             if i7 == last and colors[i7] == p["start"] and not self.seen(key1 + "|warning"):
                 self.mark(key1 + "|warning")
-                send(f"⚠️ ПОПЕРЕДЖЕННЯ — ПРАВИЛО 1\n{label(self.symbol)} — MEXC Futures | 10 хвилин\nСвічка №7 закрилася {emoji(p['start'])}.\nМожливий напрямок: {p['direction']} {emoji(p['start'])}\nОчікуємо закриття свічки №8 для сигналу.")
+                send(f"â ï¸ ÐÐÐÐÐ ÐÐÐÐÐÐÐ¯ â ÐÐ ÐÐÐÐÐ 1\n{label(self.symbol)} â MEXC Futures | 10 ÑÐ²Ð¸Ð»Ð¸Ð½\nÐ¡Ð²ÑÑÐºÐ° â7 Ð·Ð°ÐºÑÐ¸Ð»Ð°ÑÑ {emoji(p['start'])}.\nÐÐ¾Ð¶Ð»Ð¸Ð²Ð¸Ð¹ Ð½Ð°Ð¿ÑÑÐ¼Ð¾Ðº: {p['direction']} {emoji(p['start'])}\nÐÑÑÐºÑÑÐ¼Ð¾ Ð·Ð°ÐºÑÐ¸ÑÑÑ ÑÐ²ÑÑÐºÐ¸ â8 Ð´Ð»Ñ ÑÐ¸Ð³Ð½Ð°Ð»Ñ.")
 
             if i8 == last and colors[i7] == p["start"]:
                 self.signal(1, p, closed[i8]["ts"] + TIMEFRAME, closed, 9, 15)
@@ -286,7 +295,7 @@ class Engine:
             if (live and i6 == last and live["ts"] == closed[i6]["ts"] + TIMEFRAME
                     and color(live) == p["opposite"] and not self.seen(key2 + "|warning")):
                 self.mark(key2 + "|warning")
-                send(f"⚠️ ПОПЕРЕДЖЕННЯ — ПРАВИЛО 2\n{label(self.symbol)} — MEXC Futures | 10 хвилин\nСвічка №7 зараз {emoji(p['opposite'])}.\nМожливий напрямок: {p['direction']} {emoji(p['start'])}\nСигнал буде лише якщо свічка №7 закриється {emoji(p['opposite'])}.\nОчікуване закриття: {kyiv(live['ts'] + TIMEFRAME)} (Київ).")
+                send(f"â ï¸ ÐÐÐÐÐ ÐÐÐÐÐÐÐ¯ â ÐÐ ÐÐÐÐÐ 2\n{label(self.symbol)} â MEXC Futures | 10 ÑÐ²Ð¸Ð»Ð¸Ð½\nÐ¡Ð²ÑÑÐºÐ° â7 Ð·Ð°ÑÐ°Ð· {emoji(p['opposite'])}.\nÐÐ¾Ð¶Ð»Ð¸Ð²Ð¸Ð¹ Ð½Ð°Ð¿ÑÑÐ¼Ð¾Ðº: {p['direction']} {emoji(p['start'])}\nÐ¡Ð¸Ð³Ð½Ð°Ð» Ð±ÑÐ´Ðµ Ð»Ð¸ÑÐµ ÑÐºÑÐ¾ ÑÐ²ÑÑÐºÐ° â7 Ð·Ð°ÐºÑÐ¸ÑÑÑÑÑ {emoji(p['opposite'])}.\nÐÑÑÐºÑÐ²Ð°Ð½Ðµ Ð·Ð°ÐºÑÐ¸ÑÑÑ: {kyiv(live['ts'] + TIMEFRAME)} (ÐÐ¸ÑÐ²).")
 
             if i7 == last and colors[i7] == p["opposite"]:
                 self.signal(2, p, closed[i7]["ts"] + TIMEFRAME, closed, 8, 14)
@@ -300,26 +309,32 @@ class Engine:
         for p in self.state["pending"]:
             times = [p["result_start_ts"] + i*TIMEFRAME for i in range(p["count"])]
             if not all(t in by_ts for t in times):
+                missing = [t for t in times if t not in by_ts]
+                log.debug("RESULT WAITING | %s | rule=%s | missing=%s", self.symbol, p["rule"], len(missing))
                 remain.append(p)
                 continue
             cs = [color(by_ts[t]) for t in times]
-            if p["start"] in cs:
-                result = "WIN"
-                uk = "ПЕРЕМОГА"
-            elif all(c == p["opposite"] for c in cs):
-                result = "LOSS"
-                uk = "ПОРАЗКА"
+            # Finish the evaluation as soon as all 7 result candles are closed.
+            # Doji is neither green nor red: it cannot make a WIN, and LOSS is
+            # valid only when every result candle is the opposite color.
+            result = classify_result(p["start"], p["opposite"], cs)
+            if result == "WIN":
+                uk = "ÐÐÐ ÐÐÐÐÐ"
+                result_emoji = "ð¢"
+            elif result == "LOSS":
+                uk = "ÐÐÐ ÐÐÐÐ"
+                result_emoji = "ð´"
             else:
-                # A doji is neither green nor red; it cannot by itself establish LOSS.
-                remain.append(p)
-                continue
+                uk = "ÐÐÐ Ð ÐÐÐ£ÐÐ¬Ð¢ÐÐ¢Ð£ â Ð ÐÐÐÐÐ"
+                result_emoji = "âª"
             key = p["key"] + "|result"
             if not self.seen(key):
-                msg = (f"{'🟢' if result == 'WIN' else '🔴'} {uk} ({result})\n"
-                       f"{label(self.symbol)} — MEXC Futures | 10 хвилин\nПравило {p['rule']}\n"
-                       f"Напрямок: {p['direction']}\nЧас сигналу: {kyiv(p['signal_ts'])} (Київ)\n"
-                       f"Свічки результату: {times[0] and (8 if p['rule'] == 2 else 9)}–{14 if p['rule'] == 2 else 15}\n"
-                       f"Час закриття результату: {kyiv(times[-1]+TIMEFRAME)} (Київ)")
+                msg = (f"{result_emoji} {uk} ({result})\n"
+                       f"{label(self.symbol)} â MEXC Futures | 10 ÑÐ²Ð¸Ð»Ð¸Ð½\nÐÑÐ°Ð²Ð¸Ð»Ð¾ {p['rule']}\n"
+                       f"ÐÐ°Ð¿ÑÑÐ¼Ð¾Ðº: {p['direction']}\nÐ§Ð°Ñ ÑÐ¸Ð³Ð½Ð°Ð»Ñ: {kyiv(p['signal_ts'])} (ÐÐ¸ÑÐ²)\n"
+                       f"Ð¡Ð²ÑÑÐºÐ¸ ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÑ: {8 if p['rule'] == 2 else 9}â{14 if p['rule'] == 2 else 15}\n"
+                       f"Ð§Ð°Ñ Ð·Ð°ÐºÑÐ¸ÑÑÑ ÑÐµÐ·ÑÐ»ÑÑÐ°ÑÑ: {kyiv(times[-1]+TIMEFRAME)} (ÐÐ¸ÑÐ²)")
+                log.info("RESULT READY | %s | rule=%s | result=%s | candles=%s", self.symbol, p["rule"], result, ",".join(cs))
                 if send(msg):
                     self.mark(key)
                 else:
@@ -339,9 +354,14 @@ def run_tests():
     assert e.base_pattern(bad, 0) is None
     # Check that all test candles use 10-minute spacing.
     assert TIMEFRAME == 600 and b[1]["ts"] - b[0]["ts"] == 600
+    # Result evaluation: any favorable candle = WIN; all opposite = LOSS;
+    # a doji with no favorable candle ends as a neutral result, not endless pending.
+    assert classify_result("G", "R", ["R", "G", "R", "R", "R", "R", "R"]) == "WIN"
+    assert classify_result("G", "R", ["R"] * 7) == "LOSS"
+    assert classify_result("G", "R", ["R", "R", "D", "R", "R", "R", "R"]) == "DOJI"
     # Explicit UTF-8 text/emoji sanity check.
-    msg = "⚠️ ПОПЕРЕДЖЕННЯ\n🔔 СИГНАЛ LONG\nПЕРЕМОГА (WIN)\nПОРАЗКА (LOSS)"
-    assert "ПОПЕРЕДЖЕННЯ" in msg and "🔔" in msg
+    msg = "â ï¸ ÐÐÐÐÐ ÐÐÐÐÐÐÐ¯\nð Ð¡ÐÐÐÐÐ LONG\nÐÐÐ ÐÐÐÐÐ (WIN)\nÐÐÐ ÐÐÐÐ (LOSS)"
+    assert "ÐÐÐÐÐ ÐÐÐÐÐÐÐ¯" in msg and "ð" in msg
     print("Offline tests passed: LONG/SHORT, 10m spacing, #4-#5 same color, doji, Ukrainian text and emoji.")
     print("No MEXC requests or Telegram messages sent.")
 
@@ -351,9 +371,9 @@ def main():
         run_tests()
         return
     if not TOKEN or not CHAT_IDS:
-        raise RuntimeError("Задайте TELEGRAM_BOT_TOKEN і TELEGRAM_CHAT_ID у Railway → Variables")
-    log.info("Бота запущено | MEXC Futures | свічки 10 хв, зібрані з 1-хвилинних даних | %s", ", ".join(SYMBOLS))
-    send("🤖 БОТ ЗАПУЩЕНО\nMEXC Futures | 10 хвилин\nІнструменти: " + ", ".join(label(s) for s in SYMBOLS) + "\nПрацюють окремо Правило 1 і Правило 2.\nСигнали інформаційні — без автоматичного відкриття угод.")
+        raise RuntimeError("ÐÐ°Ð´Ð°Ð¹ÑÐµ TELEGRAM_BOT_TOKEN Ñ TELEGRAM_CHAT_ID Ñ Railway â Variables")
+    log.info("ÐÐ¾ÑÐ° Ð·Ð°Ð¿ÑÑÐµÐ½Ð¾ | MEXC Futures | ÑÐ²ÑÑÐºÐ¸ 10 ÑÐ², Ð·ÑÐ±ÑÐ°Ð½Ñ Ð· 1-ÑÐ²Ð¸Ð»Ð¸Ð½Ð½Ð¸Ñ Ð´Ð°Ð½Ð¸Ñ | %s", ", ".join(SYMBOLS))
+    send("ð¤ ÐÐÐ¢ ÐÐÐÐ£Ð©ÐÐÐ\nMEXC Futures | 10 ÑÐ²Ð¸Ð»Ð¸Ð½\nÐÐ½ÑÑÑÑÐ¼ÐµÐ½ÑÐ¸: " + ", ".join(label(s) for s in SYMBOLS) + "\nÐÑÐ°ÑÑÑÑÑ Ð¾ÐºÑÐµÐ¼Ð¾ ÐÑÐ°Ð²Ð¸Ð»Ð¾ 1 Ñ ÐÑÐ°Ð²Ð¸Ð»Ð¾ 2.\nÐ¡Ð¸Ð³Ð½Ð°Ð»Ð¸ ÑÐ½ÑÐ¾ÑÐ¼Ð°ÑÑÐ¹Ð½Ñ â Ð±ÐµÐ· Ð°Ð²ÑÐ¾Ð¼Ð°ÑÐ¸ÑÐ½Ð¾Ð³Ð¾ Ð²ÑÐ´ÐºÑÐ¸ÑÑÑ ÑÐ³Ð¾Ð´.")
     engines = {s: Engine(s) for s in SYMBOLS}
     while True:
         for symbol, engine in engines.items():
@@ -363,7 +383,7 @@ def main():
                 if closed:
                     log.info("HEARTBEAT OK | %s | closed=%d | latest=%s | pending=%d", symbol, len(closed), kyiv(closed[-1]["ts"]+TIMEFRAME), len(engine.state["pending"]))
             except Exception:
-                log.exception("Помилка циклу | %s", symbol)
+                log.exception("ÐÐ¾Ð¼Ð¸Ð»ÐºÐ° ÑÐ¸ÐºÐ»Ñ | %s", symbol)
         time.sleep(POLL_SECONDS)
 
 if __name__ == "__main__":
